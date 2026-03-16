@@ -1,10 +1,6 @@
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.*;
 
 /**
- * =============================================================================
- * CLASS - Reservation
- * =============================================================================
  * Represents a guest's intent to book a room.
  */
 class Reservation {
@@ -18,74 +14,99 @@ class Reservation {
 
     public String getGuestName() { return guestName; }
     public String getRoomType() { return roomType; }
+}
 
-    @Override
-    public String toString() {
-        return "Guest: " + guestName + " | Room Type: " + roomType;
+/**
+ * Manages room availability using a HashMap.
+ */
+class RoomInventory {
+    private Map<String, Integer> roomAvailability;
+
+    public RoomInventory() {
+        roomAvailability = new HashMap<>();
+        roomAvailability.put("Single", 5);
+        roomAvailability.put("Double", 3);
+        roomAvailability.put("Suite", 2);
+    }
+
+    public Map<String, Integer> getRoomAvailability() {
+        return roomAvailability;
+    }
+
+    public void updateAvailability(String roomType, int count) {
+        roomAvailability.put(roomType, count);
     }
 }
 
 /**
- * =============================================================================
- * CLASS - BookingRequestQueue
- * =============================================================================
- * Manages incoming booking requests in a FIFO order.
- * @version 5.0
+ * Processes queued requests and handles room allocation.
+ * Use Case 6: Reservation Confirmation & Room Allocation
+ * @version 6.0
  */
-class BookingRequestQueue {
-    /** Queue to store reservations in order of arrival. */
-    private Queue<Reservation> requestQueue;
+class RoomAllocationService {
+    // Maps room type to a Set of uniquely assigned room IDs
+    private Map<String, Set<String>> allocatedRooms;
 
-    public BookingRequestQueue() {
-        this.requestQueue = new LinkedList<>();
+    public RoomAllocationService() {
+        allocatedRooms = new HashMap<>();
+        allocatedRooms.put("Single", new HashSet<>());
+        allocatedRooms.put("Double", new HashSet<>());
+        allocatedRooms.put("Suite", new HashSet<>());
     }
 
-    /** Adds a new booking request to the queue. */
-    public void addRequest(Reservation reservation) {
-        requestQueue.add(reservation);
-        System.out.println("Request added for: " + reservation.getGuestName());
-    }
+    /**
+     * Dequeues requests and allocates rooms if available.
+     */
+    public void processAllocations(Queue<Reservation> queue, RoomInventory inventory) {
+        System.out.println("Processing Room Allocations...\n");
 
-    /** Returns the queue of reservations. */
-    public Queue<Reservation> getRequestQueue() {
-        return requestQueue;
-    }
+        while (!queue.isEmpty()) {
+            Reservation request = queue.poll(); // Dequeue in FIFO order
+            String type = request.getRoomType();
+            int availableCount = inventory.getRoomAvailability().getOrDefault(type, 0);
 
-    /** Displays all pending requests in the queue. */
-    public void displayQueue() {
-        System.out.println("\n--- Current Booking Request Queue ---");
-        if (requestQueue.isEmpty()) {
-            System.out.println("No pending requests.");
-        } else {
-            for (Reservation res : requestQueue) {
-                System.out.println(res);
+            if (availableCount > 0) {
+                // Generate a unique Room ID (e.g., S-1, D-1, etc.)
+                String roomId = type.charAt(0) + "-" + (allocatedRooms.get(type).size() + 1);
+
+                // Add to Set to ensure uniqueness (Prevention of Double-Booking)
+                allocatedRooms.get(type).add(roomId);
+
+                // Decrement Inventory
+                inventory.updateAvailability(type, availableCount - 1);
+
+                System.out.println("CONFIRMED: " + request.getGuestName() +
+                        " | Room: " + roomId + " (" + type + ")");
+            } else {
+                System.out.println("FAILED: No availability for " + request.getGuestName() +
+                        " (" + type + ")");
             }
         }
     }
 }
 
 /**
- * =============================================================================
- * MAIN CLASS - UseCase5BookingRequestQueue
- * =============================================================================
- * @version 5.0
+ * MAIN CLASS - UseCase6RoomAllocationService
  */
 public class BookMyStayApp {
-
     public static void main(String[] args) {
-        System.out.println("Booking Request Intake System\n");
+        System.out.println("Hotel Reservation & Allocation System\n");
 
-        // Initialize the Booking Queue
-        BookingRequestQueue bookingQueue = new BookingRequestQueue();
+        // 1. Setup Inventory
+        RoomInventory inventory = new RoomInventory();
 
-        // Simulate incoming booking requests (Intake stage)
-        bookingQueue.addRequest(new Reservation("Alice", "Suite"));
-        bookingQueue.addRequest(new Reservation("Bob", "Single"));
-        bookingQueue.addRequest(new Reservation("Charlie", "Double"));
+        // 2. Setup Request Queue (FIFO)
+        Queue<Reservation> bookingQueue = new LinkedList<>();
+        bookingQueue.add(new Reservation("Alice", "Suite"));
+        bookingQueue.add(new Reservation("Bob", "Single"));
+        bookingQueue.add(new Reservation("Charlie", "Suite"));
+        bookingQueue.add(new Reservation("David", "Suite")); // Should fail (only 2 Suites)
 
-        // Display the queue to verify FIFO order
-        bookingQueue.displayQueue();
+        // 3. Setup Allocation Service and Process
+        RoomAllocationService allocationService = new RoomAllocationService();
+        allocationService.processAllocations(bookingQueue, inventory);
 
-        System.out.println("\nRequests are waiting for allocation processing.");
+        // 4. Show final inventory state
+        System.out.println("\nFinal Inventory Status: " + inventory.getRoomAvailability());
     }
 }

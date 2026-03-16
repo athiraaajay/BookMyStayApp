@@ -1,80 +1,84 @@
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Data model for a Reservation.
+ * CUSTOM EXCEPTION - InvalidBookingException
+ * Represents errors specific to the hotel booking domain.
  */
-class Reservation {
-    private String guestName;
-    private String roomType;
-
-    public Reservation(String guestName, String roomType) {
-        this.guestName = guestName;
-        this.roomType = roomType;
-    }
-
-    public String getGuestName() { return guestName; }
-    public String getRoomType() { return roomType; }
-}
-
-/**
- * CLASS - BookingHistory
- * This class maintains a record of confirmed reservations using a List.
- */
-class BookingHistory {
-    private List<Reservation> confirmedReservations;
-
-    public BookingHistory() {
-        this.confirmedReservations = new ArrayList<>();
-    }
-
-    public void addReservation(Reservation reservation) {
-        confirmedReservations.add(reservation);
-    }
-
-    public List<Reservation> getConfirmedReservations() {
-        return confirmedReservations;
+class InvalidBookingException extends Exception {
+    public InvalidBookingException(String message) {
+        super(message);
     }
 }
 
 /**
- * CLASS - BookingReportService
- * This class generates reports from booking history data.
+ * CLASS - RoomInventory
+ * Manages room availability and performs state validation.
  */
-class BookingReportService {
+class RoomInventory {
+    private Map<String, Integer> roomAvailability;
+
+    public RoomInventory() {
+        roomAvailability = new HashMap<>();
+        roomAvailability.put("Single", 5);
+        roomAvailability.put("Double", 3);
+        roomAvailability.put("Suite", 2);
+    }
+
     /**
-     * Displays a summary report of all confirmed bookings.
-     * @param history booking history
+     * Validates and processes a booking request.
+     * Throws an exception if the room type is invalid or unavailable.
      */
-    public void generateReport(BookingHistory history) {
-        System.out.println("Booking History Report");
-        for (Reservation reservation : history.getConfirmedReservations()) {
-            System.out.println("Guest: " + reservation.getGuestName() +
-                    ", Room Type: " + reservation.getRoomType());
+    public void validateAndProcessBooking(String roomType) throws InvalidBookingException {
+        // Step 1: Validate Room Type (Case Sensitivity Check)
+        if (!roomAvailability.containsKey(roomType)) {
+            throw new InvalidBookingException("FAILURE: Invalid Room Type provided -> " + roomType);
         }
+
+        // Step 2: Validate Availability
+        int count = roomAvailability.get(roomType);
+        if (count <= 0) {
+            throw new InvalidBookingException("FAILURE: No availability for Room Type -> " + roomType);
+        }
+
+        // Step 3: Update State only if valid
+        roomAvailability.put(roomType, count - 1);
+        System.out.println("SUCCESS: Booking confirmed for " + roomType);
+    }
+
+    public Map<String, Integer> getRoomAvailability() {
+        return roomAvailability;
     }
 }
 
 /**
- * MAIN CLASS - UseCase8BookingHistoryReport
- * This class demonstrates how confirmed bookings are stored and reported.
- * @version 8.0
+ * MAIN CLASS - UseCase9ErrorHandlingValidation
+ * Demonstrates structured error handling and validation.
+ * @version 9.0
  */
 public class BookMyStayApp {
 
     public static void main(String[] args) {
-        System.out.println("Booking History and Reporting\n");
+        System.out.println("Hotel Booking Validation System\n");
 
-        // 1. Initialize data storage and the reporting service
-        BookingHistory history = new BookingHistory();
-        BookingReportService reportService = new BookingReportService();
+        RoomInventory inventory = new RoomInventory();
 
-        // 2. Add confirmed reservations to history (simulating Use Case Flow)
-        history.addReservation(new Reservation("Abhi", "Single"));
-        history.addReservation(new Reservation("Subha", "Double"));
-        history.addReservation(new Reservation("Vanmathi", "Suite"));
+        // Array of test cases including valid and invalid inputs
+        String[] testBookings = {"Single", "Penthouse", "Suite", "Single", "Deluxe"};
 
-        // 3. Generate and display the report
-        reportService.generateReport(history);
+        for (String type : testBookings) {
+            try {
+                System.out.println("Processing request for: " + type);
+                inventory.validateAndProcessBooking(type);
+            } catch (InvalidBookingException e) {
+                // Graceful failure handling
+                System.out.println(e.getMessage());
+            } finally {
+                System.out.println("Current Inventory: " + inventory.getRoomAvailability());
+                System.out.println("------------------------------------------------");
+            }
+        }
+
+        System.out.println("\nSystem continues to run safely after handling errors.");
     }
 }
